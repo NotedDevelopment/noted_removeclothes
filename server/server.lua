@@ -6,10 +6,25 @@ local function getPlayerDist(a, b)
     return #(pa - pb)
 end
 
---- Dead or in last stand, via QBox player management. Edit if your server
---- tracks death differently.
+-- ─── framework / inventory bridges ──────────────────────────────────────────
+
+local function getFrameworkPlayer(srvId)
+    if Config.Framework == 'qb' then
+        return exports['qb-core']:GetPlayer(srvId)
+    end
+    return exports.qbx_core:GetPlayer(srvId)
+end
+
+local function addItem(src, item, count)
+    if Config.InventoryResource == 'qb-inventory' then
+        exports['qb-inventory']:AddItem(src, item, count)
+    else
+        exports.ox_inventory:AddItem(src, item, count)
+    end
+end
+
 local function getDeathState(tgtId)
-    local player = exports.qbx_core:GetPlayer(tgtId)
+    local player = getFrameworkPlayer(tgtId)
     if not player then return false end
     return player.PlayerData.metadata.isdead
         or player.PlayerData.metadata.inlaststand
@@ -53,7 +68,7 @@ RegisterNetEvent('noted_removeclothes:server:stealShoes', function(targetSrvId)
     if getPlayerDist(src, targetSrvId) > Config.MaxDistance * 2 then return end
 
     if getDeathState(targetSrvId) then
-        exports.ox_inventory:AddItem(src, Config.ShoeItem, 1)
+        addItem(src, Config.ShoeItem, 1)
         TriggerClientEvent('noted_removeclothes:client:applyRemoval', targetSrvId, 'shoes')
         TriggerClientEvent('noted_removeclothes:client:shoesStolen', targetSrvId, GetPlayerName(src))
         TriggerClientEvent('noted_removeclothes:client:shoesSuccess', src)
@@ -75,7 +90,7 @@ RegisterNetEvent('noted_removeclothes:server:shoeSkillResult', function(thiefSrv
     if passed then
         TriggerClientEvent('noted_removeclothes:client:shoesKept', thiefSrvId)
     else
-        exports.ox_inventory:AddItem(thiefSrvId, Config.ShoeItem, 1)
+        addItem(thiefSrvId, Config.ShoeItem, 1)
         TriggerClientEvent('noted_removeclothes:client:applyRemoval', src, 'shoes')
         TriggerClientEvent('noted_removeclothes:client:shoesStolen', src, GetPlayerName(thiefSrvId))
         TriggerClientEvent('noted_removeclothes:client:shoesSuccess', thiefSrvId)

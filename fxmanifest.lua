@@ -13,7 +13,11 @@ shared_scripts {
 }
 
 client_scripts {
+    -- QBX (Config.Framework = 'qbx'): keep this line.
+    -- QBCore (Config.Framework = 'qb'): remove/comment this line.
     '@qbx_core/modules/playerdata.lua',
+
+    'client/framework.lua',
     'client/client.lua',
 }
 
@@ -29,9 +33,21 @@ files {
     'web/script.js',
 }
 
+-- ─── dependencies ─────────────────────────────────────────────────────────────
+-- Keep only the entries that match your config:
+--
+--  Framework      → 'qbx_core'    (Config.Framework = 'qbx')
+--                   'qb-core'     (Config.Framework = 'qb')
+--
+--  Inventory      → 'ox_inventory' (Config.InventoryResource = 'ox_inventory')
+--                   'qb-inventory' (Config.InventoryResource = 'qb-inventory')
+--
+--  Target         → 'ox_target'   (Config.TargetResource = 'ox_target', UseTarget = true)
+--                   'qb-target'   (Config.TargetResource = 'qb-target', UseTarget = true)
+--                   omit entirely  (Config.UseTarget = false)
 dependencies {
     'ox_lib',
-    'qbx_core',
-    'ox_inventory',
-    'ox_target',
+    'qbx_core',      -- swap to 'qb-core' for QBCore
+    'ox_inventory',  -- swap to 'qb-inventory' for qb-inventory
+    'ox_target',     -- swap to 'qb-target' or remove if UseTarget = false
 }

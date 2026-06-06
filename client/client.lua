@@ -38,6 +38,14 @@ local function slotById(id)
     end
 end
 
+local function getLocalPlayerIdFromServerId(srvId)
+    for _, playerId in ipairs(GetActivePlayers()) do
+        if GetPlayerServerId(playerId) == srvId then
+            return playerId
+        end
+    end
+end
+
 local function isMale(ped)
     return GetEntityModel(ped) ~= FEMALE_HASH
 end
@@ -82,11 +90,9 @@ local function looksVulnerable(ped)
     return isShowingVulnerableAnim(ped)
 end
 
---- Am I (the LOCAL player) dead, downed, or cuffed? These are the "death
---- checks" that let someone strip the config free-slots off me without asking.
---- QBX.PlayerData is always us, so this is only valid for ourselves.
+--- Am I (the LOCAL player) dead, downed, or cuffed?
 local function amIDownedOrCuffed()
-    local meta = QBX.PlayerData and QBX.PlayerData.metadata
+    local meta = PlayerFramework.getMetadata()
     if not meta then return false end
     return meta.isdead or meta.inlaststand or meta.ishandcuffed or false
 end
@@ -342,6 +348,17 @@ RegisterNetEvent('noted_removeclothes:client:validateStrip', function(initiatorS
     local slot = slotById(slotId)
     if not slot then return end
 
+    -- Target-side proximity check: make sure the initiator is still close enough.
+    local initiatorLocalId = getLocalPlayerIdFromServerId(initiatorSrvId)
+    if not initiatorLocalId then
+        TriggerServerEvent('noted_removeclothes:server:stripApplied', initiatorSrvId, slotId, false)
+        return
+    end
+    if #(GetEntityCoords(PlayerPedId()) - GetEntityCoords(GetPlayerPed(initiatorLocalId))) > Config.MaxDistance then
+        TriggerServerEvent('noted_removeclothes:server:stripApplied', initiatorSrvId, slotId, false)
+        return
+    end
+
     local allowed = false
     if hasApproval(initiatorSrvId) then
         allowed = true
@@ -455,35 +472,78 @@ end
 
 -- ─── ox_target ───────────────────────────────────────────────────────────────
 
-exports.ox_target:addGlobalPlayer({
-    {
-        name     = 'noted_undress',
-        label    = 'Undress Player',
-        icon     = 'fa-solid fa-shirt',
-        distance = Config.MaxDistance,
-        onSelect = function(data)
-            local tPlayer = NetworkGetPlayerIndexFromPed(data.entity)
-            if tPlayer == -1 then return end
-            local tSrvId = GetPlayerServerId(tPlayer)
-            if tSrvId == GetPlayerServerId(PlayerId()) then return end
+if Config.UseTarget then
+    if Config.TargetResource == 'qb-target' then
+        exports['qb-target']:AddGlobalPlayer({
+            {
+                label  = Config.TargetUndressLabel,
+                icon   = 'fas fa-shirt',
+                action = function(entity)
+                    local tPlayer = NetworkGetPlayerIndexFromPed(entity)
+                    if tPlayer == -1 then return end
+                    local tSrvId = GetPlayerServerId(tPlayer)
+                    if tSrvId == GetPlayerServerId(PlayerId()) then return end
+                    openMenu(tSrvId, entity, looksVulnerable(entity))
+                end,
+            },
+            {
+                label  = Config.TargetStealShoesLabel,
+                icon   = 'fas fa-shoe-prints',
+                action = function(entity)
+                    local tPlayer = NetworkGetPlayerIndexFromPed(entity)
+                    if tPlayer == -1 then return end
+                    local tSrvId = GetPlayerServerId(tPlayer)
+                    if tSrvId == GetPlayerServerId(PlayerId()) then return end
+                    stealShoes(entity, tSrvId)
+                end,
+            },
+        }, Config.MaxDistance)
+    else
+        -- ox_target
+        exports.ox_target:addGlobalPlayer({
+            {
+                name     = 'noted_undress',
+                label    = Config.TargetUndressLabel,
+                icon     = 'fa-solid fa-shirt',
+                distance = Config.MaxDistance,
+                onSelect = function(data)
+                    local tPlayer = NetworkGetPlayerIndexFromPed(data.entity)
+                    if tPlayer == -1 then return end
+                    local tSrvId = GetPlayerServerId(tPlayer)
+                    if tSrvId == GetPlayerServerId(PlayerId()) then return end
+                    openMenu(tSrvId, data.entity, looksVulnerable(data.entity))
+                end,
+            },
+            {
+                name     = 'noted_steal_shoes',
+                label    = Config.TargetStealShoesLabel,
+                icon     = 'fa-solid fa-shoe-prints',
+                distance = Config.MaxDistance,
+                onSelect = function(data)
+                    local tPlayer = NetworkGetPlayerIndexFromPed(data.entity)
+                    if tPlayer == -1 then return end
+                    local tSrvId = GetPlayerServerId(tPlayer)
+                    if tSrvId == GetPlayerServerId(PlayerId()) then return end
+                    stealShoes(data.entity, tSrvId)
+                end,
+            },
+        })
+    end
+end
 
-            -- Vulnerability is judged purely from the target's animations,
-            -- client-side. The target re-validates before anything is removed.
-            local vulnerable = looksVulnerable(data.entity)
-            openMenu(tSrvId, data.entity, vulnerable)
-        end,
-    },
-    {
-        name     = 'noted_steal_shoes',
-        label    = 'Steal Shoes',
-        icon     = 'fa-solid fa-shoe-prints',
-        distance = Config.MaxDistance,
-        onSelect = function(data)
-            local tPlayer = NetworkGetPlayerIndexFromPed(data.entity)
-            if tPlayer == -1 then return end
-            local tSrvId = GetPlayerServerId(tPlayer)
-            if tSrvId == GetPlayerServerId(PlayerId()) then return end
-            stealShoes(data.entity, tSrvId)
-        end,
-    },
-})
+-- ─── command ─────────────────────────────────────────────────────────────────
+
+if Config.UseCommand then
+    RegisterCommand(Config.CommandName, function()
+        local playerId = lib.getClosestPlayer(GetEntityCoords(PlayerPedId()), Config.MaxDistance, false)
+
+        if not playerId then
+            lib.notify({ title = 'No one nearby', description = 'There is no player close enough.', type = 'error' })
+            return
+        end
+
+        local closestPed   = GetPlayerPed(playerId)
+        local closestSrvId = GetPlayerServerId(playerId)
+        openMenu(closestSrvId, closestPed, looksVulnerable(closestPed))
+    end, false)
+end
