@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>noted_removeclothes</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ── Undress menu (initiator side) ─────────────────────────────────────── -->
+<div id="app" class="hidden">
+
+    <div id="panel">
+        <div id="panel-header">
+            <span id="panel-title">PATIENT</span>
+            <button id="close-btn" onclick="closeMenu()">&#10005;</button>
+        </div>
+        <div id="slot-list"></div>
+        <button id="request-btn" class="hidden" onclick="requestPermission()">
+            Request permission
+        </button>
+    </div>
+
+    <!-- World-space label layer -->
+    <svg id="lines-svg" xmlns="http://www.w3.org/2000/svg" pointer-events="none"></svg>
+    <div id="world-labels"></div>
+
+    <div id="cam-controls">
+        <div><span class="key">RMB</span> Drag to orbit</div>
+        <div><span class="key">Scroll</span> Zoom</div>
+        <div><span class="key">ESC</span> Close</div>
+    </div>
+</div>
+
+<!-- ── Permission request (target side) ──────────────────────────────────── -->
+<div id="request-box" class="hidden">
+    <div id="req-header">UNDRESS REQUEST</div>
+    <div id="req-body"><span id="req-text"></span></div>
+    <div id="req-actions">
+        <div class="req-btn accept" onclick="respondPermission(true)">
+            <span class="key-badge">Y</span> Press [Y] to accept
+        </div>
+        <div class="req-btn deny" onclick="respondPermission(false)">
+            <span class="key-badge">N</span> Press [N] to deny
+        </div>
+    </div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
